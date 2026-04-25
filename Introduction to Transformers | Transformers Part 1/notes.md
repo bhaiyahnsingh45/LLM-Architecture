@@ -11,10 +11,11 @@
 |------|-------------|
 | 2000–2014 | RNNs and LSTMs dominate NLP. All major tasks — translation, summarization, sentiment — are built on sequential recurrent models. |
 | 2014 | **Encoder-Decoder with LSTM** introduced for seq2seq tasks. The encoder compresses the whole input into a single fixed-size vector; the decoder reads that vector to generate output. Works, but the fixed-size bottleneck hurts long sequences. |
-| 2015–2016 | **Attention mechanism** proposed. Instead of one fixed vector, the decoder can look at all encoder hidden states and dynamically decide which parts of the input matter most at each decoding step. Big improvement, but attention is still bolted on top of LSTMs. |
+| 2014–2015 | **Attention mechanism** proposed (Bahdanau et al., arxiv Sep 2014 / ICLR 2015). Instead of one fixed vector, the decoder can look at all encoder hidden states and dynamically decide which parts of the input matter most at each decoding step. Big improvement, but attention is still bolted on top of LSTMs. |
 | 2017 | **"Attention Is All You Need"** (Vaswani et al.). Removes the LSTM entirely. The whole architecture is built on self-attention. Enables full parallelism and scales to much larger models. |
 | 2018 | **BERT** (Google) and **GPT** (OpenAI) show that pre-training a large Transformer on raw text and then fine-tuning on specific tasks beats every prior approach. Transfer learning era begins. |
-| 2018–2020 | Transformers move beyond NLP — **Vision Transformer (ViT)** for images, **AlphaFold 2** (DeepMind) uses Transformers to predict protein 3D structure, achieving a 50-year-old biology grand challenge. |
+| 2018 | **AlphaFold 1** (DeepMind) wins CASP13 protein-folding competition using deep learning (not yet Transformers). |
+| 2020–2021 | **Vision Transformer (ViT)** (Google, ICLR 2021) — applies Transformer to image patches, matches CNNs. **AlphaFold 2** (CASP14, Dec 2020; Nature paper Jul 2021) — uses Transformer + attention to solve protein 3D structure prediction, a 50-year-old biology grand challenge. |
 | 2021–2023 | **Generative AI** era — ChatGPT, DALL·E 2, Midjourney, Stable Diffusion, RunwayML. Transformers generate text, images, audio, and video at human-level quality. |
 
 ---
@@ -83,11 +84,14 @@ Input sequence  →  [Token Embeddings + Positional Encoding]
 
 ### Encoder vs Decoder
 
-| | Encoder | Decoder |
-|--|---------|---------|
-| Purpose | Understand the input | Generate the output |
-| Attention type | Bidirectional self-attention (every token sees all others) | Masked self-attention (each token only sees past tokens) + cross-attention to encoder |
-| Used in | BERT-style models | GPT-style models, seq2seq translation |
+| | Encoder | Full Transformer Decoder (seq2seq) | Decoder-only (GPT-style) |
+|--|---------|-----------------------------------|-----------------------------|
+| Purpose | Understand the input | Generate output using both input context and past outputs | Generate output using only past outputs |
+| Sub-layers | Self-attention + FFN | Masked self-attention + **Cross-attention** + FFN | Masked self-attention + FFN (no cross-attention — there is no encoder) |
+| Attention scope | Bidirectional — every token sees all others | Self-attention is causal; cross-attention attends to full encoder output | Causal only — each token sees only previous tokens |
+| Used in | BERT, RoBERTa | Original Transformer (translation), T5, BART | GPT, LLaMA, Claude, Gemini |
+
+> **Key distinction for interviews:** GPT is *decoder-only* — it has no encoder and no cross-attention. The "decoder" in GPT is just stacked masked self-attention + FFN blocks. The full Transformer decoder (used in translation) has an extra cross-attention sub-layer to attend to encoder output.
 
 ---
 
@@ -95,8 +99,10 @@ Input sequence  →  [Token Embeddings + Positional Encoding]
 
 ### Self-Attention
 - The mechanism that makes it all work
-- For each token, compute how much it should "attend to" every other token
-- Produces a weighted sum of all token representations
+- Each token creates three vectors: **Query (Q)**, **Key (K)**, **Value (V)** via learned linear projections
+- Attention score between token i and token j = dot product of Q_i and K_j, scaled by √d_k
+- Scores are passed through softmax → attention weights (sum to 1)
+- Output for token i = weighted sum of **Value vectors** (not raw token representations)
 - Replaces the sequential hidden state passing of RNNs
 
 ### Multi-Head Attention
@@ -169,7 +175,7 @@ Input sequence  →  [Token Embeddings + Positional Encoding]
 |--------|-------------|----------|
 | NLP | Machine translation, summarisation, Q&A | Google Translate, ChatGPT |
 | Conversational AI | Human-like dialogue | ChatGPT, Claude, Gemini |
-| Image generation | Text-to-image | DALL·E 2, Midjourney, Stable Diffusion |
+| Image generation | Text-to-image | DALL·E 2, Midjourney, Stable Diffusion (SD uses U-Net + CLIP Transformer encoder; later SD3/FLUX use Diffusion Transformer / DiT) |
 | Science | Protein structure prediction | AlphaFold 2 |
 | Code | Code generation and completion | GitHub Copilot, Codex |
 | Multimodal | Text + image + audio | GPT-4V, Gemini, RunwayML |
@@ -194,7 +200,7 @@ Input sequence  →  [Token Embeddings + Positional Encoding]
 | Term | Definition |
 |------|-----------|
 | **Transformer** | Attention-only seq2seq architecture introduced in 2017 |
-| **Self-Attention** | Mechanism where each token computes a weighted sum over all other tokens |
+| **Self-Attention** | Each token uses Q/K/V projections — attention weights from Q·K^T/√d_k softmax, output is weighted sum of Value vectors |
 | **Multi-Head Attention** | Running attention in parallel with multiple learned projections |
 | **Encoder** | Transformer component that builds contextual representations of the input |
 | **Decoder** | Transformer component that generates output tokens autoregressively |
